@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖼️ Modern File Converter</title>
+    <style>
+        :root {
+            --primary-color: #2a9d8f;
+            --secondary-color: #264653;
+            --accent-color: #e9c46a;
+            --background-color: #1a2639;
+            --text-color: #ffffff;
+            --container-bg: #ffffff;
+            --button-color: #1e7167; /* Darker shade for buttons */
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-color);
+        }
+        .container {
+            background-color: var(--container-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 2.5rem;
+        }
+        .section {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+        select, .file-input-wrapper {
+            width: 100%;
+            margin-bottom: 1rem;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            background-color: white;
+            font-size: 1rem;
+            overflow: hidden;
+        }
+        select {
+            padding: 0.75rem;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: block;
+        }
+        .file-input-wrapper::after {
+            content: 'Choose File';
+            display: block;
+            background-color: var(--button-color);
+            color: white;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            white-space: nowrap;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .file-input-wrapper:hover::after {
+            background-color: var(--secondary-color);
+        }
+        .file-input-wrapper input[type="file"] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        button {
+            background-color: var(--button-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            width: 100%;
+        }
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        #error {
+            color: #e76f51;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+        #result {
+            margin-top: 1rem;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            border: 1px solid #ddd;
+            color: var(--secondary-color);
+        }
+        .emoji-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.05;
+            pointer-events: none;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            align-content: space-around;
+        }
+        .emoji {
+            font-size: 3rem;
+            color: var(--accent-color);
+        }
+        #imagePreview {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 1rem;
+            border-radius: 8px;
+            display: none;
+        }
+        .file-name {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="emoji-background" id="emojiBackground"></div>
+    <div class="container">
+        <h1>🖼️ File Converter</h1>
+        <div class="section" id="imageSection">
+            <label for="imageInput">Select Image:</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="imageInput" accept="image/*" onchange="previewImage(this)">
+            </div>
+            <div id="fileName" class="file-name"></div>
+            <img id="imagePreview" alt="Image preview" />
+            <label for="imageOutputFormat">Convert to:</label>
+            <select id="imageOutputFormat">
+                <option value="png">PNG</option>
+                <option value="jpg">JPG</option>
+                <option value="webp">WebP</option>
+                <option value="avif">AVIF</option>
+                <option value="tiff">TIFF</option>
+            </select>
+            <button onclick="convertFile('image')">Convert Image</button>
+        </div>
+
+        <div id="error"></div>
+        <div id="result"></div>
+        <div id="apiPayload"></div>
+        <div id="apiOutput"></div>
+    </div>
+
+    <script>
+        function createEmojiBackground() {
+            const background = document.getElementById('emojiBackground');
+            for (let i = 0; i < 50; i++) {
+                const emoji = document.createElement('span');
+                emoji.className = 'emoji';
+                emoji.textContent = '🖼️';
+                emoji.style.transform = `rotate(${Math.random() * 360}deg)`;
+                background.appendChild(emoji);
+            }
+        }
+
+        function previewImage(input) {
+            const preview = document.getElementById('imagePreview');
+            const fileName = document.getElementById('fileName');
+            const file = input.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    fileName.textContent = file.name;
+                }
+                
+                reader.readAsDataURL(file);
+            } else {
+                preview.src = '';
+                preview.style.display = 'none';
+                fileName.textContent = '';
+            }
+        }
+
+        async function convertFile(type) {
+            const fileInput = document.getElementById(`${type}Input`);
+            const outputFormat = document.getElementById(`${type}OutputFormat`).value;
+            const errorDiv = document.getElementById('error');
+            const resultDiv = document.getElementById('result');
+            const apiPayloadDiv = document.getElementById('apiPayload');
+            const apiOutputDiv = document.getElementById('apiOutput');
+
+            errorDiv.textContent = '';
+            resultDiv.innerHTML = '';
+            apiPayloadDiv.innerHTML = '';
+            apiOutputDiv.innerHTML = '';
+
+            if (!fileInput.files.length) {
+                errorDiv.textContent = 'Please select a file.';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function(e) {
+                const base64 = e.target.result.split(',')[1];
+                const inputFormat = file.name.split('.').pop().toLowerCase();
+
+                const requestBody = {
+                    params: {
+                        payload: base64,
+                        input: inputFormat,
+                        output: outputFormat
+                    }
+                };
+
+                apiPayloadDiv.innerHTML = '<h3>API Payload:</h3><pre>' + JSON.stringify(requestBody, null, 2) + '</pre>';
+
+                try {
+                    const response = await fetch('https://universe.lemme.cloud/api/file_convert', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody),
+                    });
+
+                    const result = await response.json();
+
+                    apiOutputDiv.innerHTML = '<h3>API Output:</h3><pre>' + JSON.stringify(result, null, 2) + '</pre>';
+
+                    if (result.data && result.data.convertedFile) {
+                        const downloadBtn = document.createElement('button');
+                        downloadBtn.textContent = 'Download Converted Image';
+                        downloadBtn.onclick = () => downloadFile(result.data.convertedFile, outputFormat);
+                        resultDiv.appendChild(downloadBtn);
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (err) {
+                    errorDiv.textContent = 'Conversion failed: ' + err.message;
+                }
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function downloadFile(base64Data, format) {
+            const link = document.createElement('a');
+            link.href = `data:application/${format};base64,${base64Data}`;
+            link.download = `converted.${format}`;
+            link.click();
+        }
+
+        // Create emoji background when the page loads
+        window.onload = createEmojiBackground;
+    </script>
+</body>
+</html>
